@@ -25,10 +25,26 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     scope=SPOTIFY_SCOPE
 ))
 
+# FORMAT config.json:
+# {
+#     "SPOTIFY_CLIENT_ID": "API HERE",
+#     "SPOTIFY_CLIENT_SECRET": "SECRET HERE",
+#     "SPOTIFY_REDIRECT_URI": "http://localhost:8080",
+#     "YT_CLIENT_ID": "YT CLIENT API HERE",
+#     "YT_CLIENT_SECRET": "YT SECRET HERE"
+# }
+
 # Load included playlists from JSON file
 with open("playlists.json", "r") as file:
     included_playlists_config = json.load(file)
 INCLUDED_PLAYLISTS = set(included_playlists_config.get("included_playlists", []))
+
+# FORMAT playlists.json:
+# {
+#     "included_playlists": [
+#         "spotify:playlist:PLAYLIST CODE HERE"
+#     ]
+# }
 
 INCLUDED_PLAYLISTS = set(uri.split(":")[-1] for uri in included_playlists_config.get("included_playlists", []))
 
