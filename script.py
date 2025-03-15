@@ -1,7 +1,7 @@
 import spotipy
 import json
 from spotipy.oauth2 import SpotifyOAuth
-from ytmusicapi import YTMusic
+from ytmusicapi import YTMusic, OAuthCredentials
 import time
 
 with open("config.json", "r") as file:
@@ -12,6 +12,9 @@ SPOTIFY_CLIENT_ID = config["SPOTIFY_CLIENT_ID"]
 SPOTIFY_CLIENT_SECRET = config["SPOTIFY_CLIENT_SECRET"]
 SPOTIFY_REDIRECT_URI = config["SPOTIFY_REDIRECT_URI"]
 SPOTIFY_SCOPE = "playlist-read-private"
+
+YT_CLIENT_ID = config["YT_CLIENT_ID"]
+YT_CLIENT_SECRET = config["YT_CLIENT_SECRET"]
 # ----------------------------------------------
 
 # Authenticate with Spotify
@@ -22,11 +25,15 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     scope=SPOTIFY_SCOPE
 ))
 
+# Load included playlists from JSON file
+with open("playlists.json", "r") as file:
+    included_playlists_config = json.load(file)
+INCLUDED_PLAYLISTS = set(included_playlists_config.get("included_playlists", []))
+
+INCLUDED_PLAYLISTS = set(uri.split(":")[-1] for uri in included_playlists_config.get("included_playlists", []))
+
 # Authenticate with YouTube Music
-ytmusic = YTMusic("oauth.json")  # Make sure to authenticate via `ytmusicapi oauth` first
-
-# print(ytmusic.get_library_songs())
-
+ytmusic = YTMusic('oauth.json', oauth_credentials=OAuthCredentials(client_id=YT_CLIENT_ID, client_secret=YT_CLIENT_SECRET))  # Make sure to authenticate via `ytmusicapi oauth` first
 def get_spotify_playlists():
     """Fetches the user's Spotify playlists."""
     playlists = sp.current_user_playlists()
@@ -64,25 +71,32 @@ def add_songs_to_youtube_playlist(playlist_id, video_ids):
             time.sleep(1)  # Avoid rate limits
 
 def transfer_playlists():
-    """Transfers Spotify playlists to YouTube Music."""
+    """Transfers only specified Spotify playlists to YouTube Music."""
     playlists = get_spotify_playlists()
 
     for playlist in playlists:
-        print(f"Transferring playlist: {playlist['name']}...")
+        playlist_name = playlist['name']
+        playlist_id = playlist['id']
+
+        if playlist_id not in INCLUDED_PLAYLISTS:
+            print(f"Skipping playlist: {playlist_name}")
+            continue  # Skip playlists not in the included list
+
+        print(f"Transferring playlist: {playlist_name}...")
 
         # Get tracks from Spotify playlist
-        tracks = get_playlist_tracks(playlist['id'])
+        tracks = get_playlist_tracks(playlist_id)
         
         # Search for each song on YouTube Music
         video_ids = [search_youtube_music(song, artist) for song, artist in tracks]
 
         # Create a YouTube Music playlist
-        yt_playlist_id = create_youtube_playlist(playlist['name'], playlist.get('description', ""))
+        yt_playlist_id = create_youtube_playlist(playlist_name, playlist.get('description', ""))
 
         # Add songs to the YouTube Music playlist
         add_songs_to_youtube_playlist(yt_playlist_id, video_ids)
 
-        print(f"Playlist '{playlist['name']}' transferred successfully!\n")
+        print(f"Playlist '{playlist_name}' transferred successfully!\n")
 
 # Run the script
 transfer_playlists()
